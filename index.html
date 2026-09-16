@@ -4835,8 +4835,18 @@ function loadStream(rawUrl){
           code = data.details || 'pas de réponse serveur';
         }
       } else if(data.type === Hls.ErrorTypes.MEDIA_ERROR){
-        try{ hls.recoverMediaError(); return; }
-        catch(e){ msg = 'Erreur média non récupérable.'; code = data.details || ''; }
+        // manifestIncompatibleCodecsError : le flux utilise un codec (souvent Dolby AC-3
+        // pour l'audio) qu'aucun navigateur web ne sait décoder nativement — ce n'est pas
+        // récupérable, hls.recoverMediaError() ne lève pas d'exception dans ce cas précis
+        // (elle retourne juste silencieusement), donc sans ce test l'écran restait bloqué
+        // sur "Connexion au flux…" indéfiniment sans jamais afficher d'erreur.
+        if(data.details === 'manifestIncompatibleCodecsError' || data.details === 'bufferIncompatibleCodecsError'){
+          msg = "Ce flux utilise un codec audio ou vidéo (souvent Dolby AC-3) que les navigateurs web ne savent pas décoder — c'est une limite du navigateur, pas de l'app. Il fonctionnera dans une appli IPTV native (VLC, TiviMate…) ou sur un téléviseur connecté.";
+          code = 'Codec non supporté par le navigateur';
+        } else {
+          try{ hls.recoverMediaError(); return; }
+          catch(e){ msg = 'Erreur média non récupérable.'; code = data.details || ''; }
+        }
       } else {
         code = data.details || data.type;
       }
